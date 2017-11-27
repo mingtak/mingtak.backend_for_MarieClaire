@@ -18,4 +18,30 @@
       directory="static"
       />
 
+<!--
+  <browser:page
+      name="mana_custom_add"
+      for="plone.app.contenttypes.interfaces.IFolder"
+      class=".views.ManaCustomAdd"
+      layer="zope.interface.Interface"
+      permission="zope2.View"
+      />
+-->
+
+  <browser:page
+      name="mana_custom_list"
+      for="plone.app.contenttypes.interfaces.IFolder"
+      class=".views.ManaCustomList"
+      layer="zope.interface.Interface"
+      permission="zope2.View"
+      />
+
+  <browser:page
+      name="custom_report"
+      for="MarieClaire.content.interfaces.ICustom"
+      class=".views.CustomReport"
+      layer="zope.interface.Interface"
+      permission="zope2.View"
+      />
+
 </configure>
