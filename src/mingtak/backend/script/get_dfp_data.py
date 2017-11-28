@@ -23,7 +23,7 @@ def createExecStr(item, name):
     execStr = \
         """INSERT INTO dfp_{}(
                 {}_ID, {}_NAME)
-            SELECT '{}', '"{}'
+            SELECT '{}', '{}'
             FROM dual
             WHERE not exists (
                 select * from dfp_{}
@@ -52,7 +52,7 @@ def main(client):
             'dimensions': ['LINE_ITEM_ID', 'LINE_ITEM_NAME', 'ORDER_ID', 'ORDER_NAME', 'DATE',
                            'ADVERTISER_NAME', 'ADVERTISER_ID'],
             'columns': ['AD_SERVER_IMPRESSIONS', 'AD_SERVER_CLICKS', 'AD_SERVER_CTR'],
-            'dateRangeType': 'REACH_LIFETIME' # 可能的值: 'TODAY', 'YESTERDAY', 'REACH_LIFETIME'
+            'dateRangeType': 'TODAY' # 可能的值: 'TODAY', 'YESTERDAY', 'REACH_LIFETIME'
         }
     }
 
@@ -91,8 +91,28 @@ def main(client):
         execStr = createExecStr(item, 'LINE_ITEM')
         execSql(execStr)
         # AD SERVER
-
-
+        execStr = \
+            """INSERT INTO dfp_ad_server(
+                    ADVERTISER_ID, LINE_ITEM_ID, ORDER_ID, DATE, AD_SERVER_IMPRESSIONS, AD_SERVER_CLICKS, AD_SERVER_CTR)
+                SELECT '{}', '{}', '{}', '{}', '{}', '{}', '{}'
+                FROM dual
+                WHERE not exists (
+                    select * from dfp_ad_server
+                    where ADVERTISER_ID = '{}' and LINE_ITEM_ID = '{}' and ORDER_ID = '{}' and DATE = '{}');
+            """.format(
+                    item.get('Dimension.ADVERTISER_ID'),
+                    item.get('Dimension.LINE_ITEM_ID'),
+                    item.get('Dimension.ORDER_ID'),
+                    item.get('Dimension.DATE'),
+                    item.get('Column.AD_SERVER_IMPRESSIONS'),
+                    item.get('Column.AD_SERVER_CLICKS'),
+                    item.get('Column.AD_SERVER_CTR'),
+                    item.get('Dimension.ADVERTISER_ID'),
+                    item.get('Dimension.LINE_ITEM_ID'),
+                    item.get('Dimension.ORDER_ID'),
+                    item.get('Dimension.DATE'),
+                )
+        execSql(execStr)
 
     # Display results.
     print 'Report job with id "%s" downloaded to:\n%s' % (
