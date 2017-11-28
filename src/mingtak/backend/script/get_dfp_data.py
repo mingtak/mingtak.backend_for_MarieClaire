@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*- 
+# -*- coding: utf-8 -*-
 from googleads import dfp
 import tempfile
 from googleads import errors
@@ -6,18 +6,40 @@ import gzip
 import csv
 import io
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-
 
 DBSTR = 'mysql+mysqldb://MarieClaire:MarieClaire@localhost/MarieClaire?charset=utf8mb4'
+ENGINE = create_engine(DBSTR, echo=True)
 
 
-def execSql(self, execStr):
+def execSql(execStr):
     conn = ENGINE.connect() # DB連線
     execResult = conn.execute(execStr)
     conn.close()
     if execResult.returns_rows:
         return execResult.fetchall()
+
+
+def createExecStr(item, name):
+    execStr = \
+        """INSERT INTO dfp_{}(
+                {}_ID, {}_NAME)
+            SELECT '{}', '"{}'
+            FROM dual
+            WHERE not exists (
+                select * from dfp_{}
+                where {}_ID = '{}');
+        """.format(
+                name.lower(),
+                name.upper(),
+                name.upper(),
+                item.get('Dimension.%s_ID' % name.upper()),
+                item.get('Dimension.%s_NAME' % name.upper()).replace("'", "''"),
+                name.lower(),
+                name.upper(),
+                item.get('Dimension.%s_ID' % name.upper())
+            )
+
+    return execStr
 
 
 def main(client):
@@ -30,7 +52,7 @@ def main(client):
             'dimensions': ['LINE_ITEM_ID', 'LINE_ITEM_NAME', 'ORDER_ID', 'ORDER_NAME', 'DATE',
                            'ADVERTISER_NAME', 'ADVERTISER_ID'],
             'columns': ['AD_SERVER_IMPRESSIONS', 'AD_SERVER_CLICKS', 'AD_SERVER_CTR'],
-            'dateRangeType': 'YESTERDAY'
+            'dateRangeType': 'REACH_LIFETIME' # 可能的值: 'TODAY', 'YESTERDAY', 'REACH_LIFETIME'
         }
     }
 
@@ -55,9 +77,22 @@ def main(client):
     with gzip.open('%s' % report_file.name, 'rb') as file:
         tmpDict = csv.DictReader(file)
         for item in tmpDict:
-            print type(item)
             resultList.append(item)
 #    import pdb;pdb.set_trace()
+
+    for item in resultList:
+        # ADVERTISER
+        execStr = createExecStr(item, 'ADVERTISER')
+        execSql(execStr)
+        # ORDER
+        execStr = createExecStr(item, 'ORDER')
+        execSql(execStr)
+        # LINE ITEM
+        execStr = createExecStr(item, 'LINE_ITEM')
+        execSql(execStr)
+        # AD SERVER
+
+
 
     # Display results.
     print 'Report job with id "%s" downloaded to:\n%s' % (
