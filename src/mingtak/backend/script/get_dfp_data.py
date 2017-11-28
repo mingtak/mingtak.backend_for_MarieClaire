@@ -22,21 +22,18 @@ def execSql(execStr):
 def createExecStr(item, name):
     execStr = \
         """INSERT INTO dfp_{}(
-                {}_ID, {}_NAME)
-            SELECT '{}', '{}'
-            FROM dual
-            WHERE not exists (
-                select * from dfp_{}
-                where {}_ID = '{}');
+               {}_ID, {}_NAME)
+           VALUES ('{}', '{}')
+           ON DUPLICATE KEY
+           UPDATE {}_NAME = '{}'
         """.format(
                 name.lower(),
                 name.upper(),
                 name.upper(),
                 item.get('Dimension.%s_ID' % name.upper()),
                 item.get('Dimension.%s_NAME' % name.upper()).replace("'", "''"),
-                name.lower(),
                 name.upper(),
-                item.get('Dimension.%s_ID' % name.upper())
+                item.get('Dimension.%s_NAME' % name.upper()).replace("'", "''")
             )
 
     return execStr
@@ -52,7 +49,7 @@ def main(client):
             'dimensions': ['LINE_ITEM_ID', 'LINE_ITEM_NAME', 'ORDER_ID', 'ORDER_NAME', 'DATE',
                            'ADVERTISER_NAME', 'ADVERTISER_ID'],
             'columns': ['AD_SERVER_IMPRESSIONS', 'AD_SERVER_CLICKS', 'AD_SERVER_CTR'],
-            'dateRangeType': 'TODAY' # 可能的值: 'TODAY', 'YESTERDAY', 'REACH_LIFETIME'
+            'dateRangeType': 'REACH_LIFETIME' # 可能的值: 'TODAY', 'YESTERDAY', 'REACH_LIFETIME'
         }
     }
 
@@ -92,14 +89,30 @@ def main(client):
         execSql(execStr)
         # AD SERVER
         execStr = \
-            """INSERT INTO dfp_ad_server(
-                    ADVERTISER_ID, LINE_ITEM_ID, ORDER_ID, DATE, AD_SERVER_IMPRESSIONS, AD_SERVER_CLICKS, AD_SERVER_CTR)
-                SELECT '{}', '{}', '{}', '{}', '{}', '{}', '{}'
-                FROM dual
-                WHERE not exists (
-                    select * from dfp_ad_server
-                    where ADVERTISER_ID = '{}' and LINE_ITEM_ID = '{}' and ORDER_ID = '{}' and DATE = '{}');
+           """SELECT id
+              FROM dfp_ad_server
+              WHERE ADVERTISER_ID = '{}' and LINE_ITEM_ID = '{}' and ORDER_ID = '{}' and DATE = '{}'
+           """.format(
+                    item.get('Dimension.ADVERTISER_ID'),
+                    item.get('Dimension.LINE_ITEM_ID'),
+                    item.get('Dimension.ORDER_ID'),
+                    item.get('Dimension.DATE'),
+               )
+        resultId = execSql(execStr)
+        if resultId:
+            resultId = resultId[0][0]
+        else:
+            execStr = "select count(*) from dfp_ad_server"
+            resultId = execSql(execStr)[0][0] + 1
+#        import pdb; pdb.set_trace()
+        execStr = \
+            """INSERT INTO dfp_ad_server(id, ADVERTISER_ID, LINE_ITEM_ID, ORDER_ID, DATE, AD_SERVER_IMPRESSIONS, AD_SERVER_CLICKS, AD_SERVER_CTR)
+               VALUES ({}, '{}', '{}', '{}', '{}', '{}', '{}', '{}')
+               ON DUPLICATE KEY
+               UPDATE AD_SERVER_IMPRESSIONS = '{}', AD_SERVER_CLICKS = '{}' , AD_SERVER_CTR = '{}'
+
             """.format(
+                    resultId,
                     item.get('Dimension.ADVERTISER_ID'),
                     item.get('Dimension.LINE_ITEM_ID'),
                     item.get('Dimension.ORDER_ID'),
@@ -107,10 +120,9 @@ def main(client):
                     item.get('Column.AD_SERVER_IMPRESSIONS'),
                     item.get('Column.AD_SERVER_CLICKS'),
                     item.get('Column.AD_SERVER_CTR'),
-                    item.get('Dimension.ADVERTISER_ID'),
-                    item.get('Dimension.LINE_ITEM_ID'),
-                    item.get('Dimension.ORDER_ID'),
-                    item.get('Dimension.DATE'),
+                    item.get('Column.AD_SERVER_IMPRESSIONS'),
+                    item.get('Column.AD_SERVER_CLICKS'),
+                    item.get('Column.AD_SERVER_CTR'),
                 )
         execSql(execStr)
 
