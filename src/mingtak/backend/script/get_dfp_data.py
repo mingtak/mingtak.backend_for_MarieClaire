@@ -20,6 +20,24 @@ def execSql(execStr):
 
 
 def createExecStr(item, name):
+    if name.lower() == 'order':
+        execStr = \
+            """INSERT INTO dfp_{}(
+                   {}_ID, {}_NAME, ADVERTISER_ID)
+               VALUES ('{}', '{}', '{}')
+               ON DUPLICATE KEY
+               UPDATE {}_NAME = '{}'
+            """.format(
+                    name.lower(),
+                    name.upper(),
+                    name.upper(),
+                    item.get('Dimension.%s_ID' % name.upper()),
+                    item.get('Dimension.%s_NAME' % name.upper()).replace("'", "''"),
+                    item.get('Dimension.ADVERTISER_ID'),
+                    name.upper(),
+                    item.get('Dimension.%s_NAME' % name.upper()).replace("'", "''")
+                )
+        return execStr
     execStr = \
         """INSERT INTO dfp_{}(
                {}_ID, {}_NAME)
