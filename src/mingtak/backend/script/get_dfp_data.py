@@ -20,6 +20,26 @@ def execSql(execStr):
 
 
 def createExecStr(item, name):
+
+    if name.lower() == 'line_item':
+        execStr = \
+            """INSERT INTO dfp_{}(
+                   {}_ID, {}_NAME, ORDER_ID)
+               VALUES ('{}', '{}', '{}')
+               ON DUPLICATE KEY
+               UPDATE {}_NAME = '{}'
+            """.format(
+                    name.lower(),
+                    name.upper(),
+                    name.upper(),
+                    item.get('Dimension.%s_ID' % name.upper()),
+                    item.get('Dimension.%s_NAME' % name.upper()).replace("'", "''"),
+                    item.get('Dimension.ORDER_ID'),
+                    name.upper(),
+                    item.get('Dimension.%s_NAME' % name.upper()).replace("'", "''")
+                )
+        return execStr
+
     if name.lower() == 'order':
         execStr = \
             """INSERT INTO dfp_{}(
@@ -120,8 +140,9 @@ def main(client):
         if resultId:
             resultId = resultId[0][0]
         else:
-            execStr = "select count(*) from dfp_ad_server"
+            execStr = "select max(id) from dfp_ad_server"
             resultId = execSql(execStr)[0][0] + 1
+
 #        import pdb; pdb.set_trace()
         execStr = \
             """INSERT INTO dfp_ad_server(id, ADVERTISER_ID, LINE_ITEM_ID, ORDER_ID, DATE, AD_SERVER_IMPRESSIONS, AD_SERVER_CLICKS, AD_SERVER_CTR)
