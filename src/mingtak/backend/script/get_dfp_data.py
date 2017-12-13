@@ -141,7 +141,10 @@ def main(client):
             resultId = resultId[0][0]
         else:
             execStr = "select max(id) from dfp_ad_server"
-            resultId = execSql(execStr)[0][0] + 1
+            try:
+                resultId = execSql(execStr)[0][0] + 1
+            except:
+                resultId = 1
 
 #        import pdb; pdb.set_trace()
         execStr = \
